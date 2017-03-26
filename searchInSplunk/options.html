@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Search in Splunk Options</title>
+</head>
+
+<body>
+  <!--
+https://splunk.myserver.ch/de-DE/app/my_app/search?q=search%20host%3Dvepo0*%20Spbservice%20SpbKurepoIntrusion&display.page.search.mode=smart&dispatch.sample_ratio=1&earliest=%40w0&latest=now&sid=1489999315.374074
+-->
+
+  <h1>Search in Splunk Options</h1>
+  Splunk Web Gui Url:
+  <input type="text" id="url" style="width:400px">
+  <br/> Default search words:
+  <input type="text" id="defaultWords">
+  <br/>
+  <br/>Default search timespan
+  <br/><input type="radio" name="timespan" id="15min">last 15 minutes
+  <br/><input type="radio" name="timespan" id="today">today
+  <br/><input type="radio" name="timespan" id="thisyear">this year
+  <br/><br/>
+  <input type="checkbox" id="chkTryConvertDate" value="try convert date">try to convert search argument as date and use it
+  as search timespan<br/>
+  <br/>if date with time is detected, use datetime +/- 2 seconds as search timespan
+  <br/>if only date is detected, use this day as search timepsan
+  <br/>
+  <div id="status"></div>
+  <button id="save">Save</button>
+
+  <script src="options.js"></script>
+</body>
+
+</html>
