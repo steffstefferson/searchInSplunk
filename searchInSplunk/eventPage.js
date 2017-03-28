@@ -11,12 +11,19 @@ function extendContextMenu() {
         }
 
         if (moment(info.selectionText).isValid()) {
-            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText));
+            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText).toDate());
             //if we had already a timespanFromSearchWord we add it to the searchQuery and use the new one.
             if (timespanFromSearchWord) {
-                searchQuery.push(info.timespanFromSearchWord);
+                searchQuery.push(info.timespanFromSearchWord.input);
             }
-            timespanFromSearchWord = info.selectionText;
+            timespanFromSearchWord = { input: info.selectionText, parsedDate: moment(info.selectionText) };
+        } else if (moment(new Date(Date.parse(info.selectionText))).isValid()) {
+            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText).toDate());
+            //if we had already a timespanFromSearchWord we add it to the searchQuery and use the new one.
+            if (timespanFromSearchWord) {
+                searchQuery.push(info.timespanFromSearchWord.input);
+            }
+            timespanFromSearchWord = { input: info.selectionText, parsedDate: moment(new Date(Date.parse(info.selectionText))) };
         } else {
             searchQuery.push(info.selectionText);
             console.log("\"" + info.selectionText + "\" added to searchQuery: " + searchQuery.join(" "));
@@ -27,7 +34,7 @@ function extendContextMenu() {
         }
     };
 
-    function getTimespan(timespanOption,momDate) {
+    function getTimespan(timespanOption, momDate) {
         var splunkFormat = function (momDate) { return momDate.format("M/D/Y:H:m:s"); };
         if (momDate) {
             var hasTime = momDate.minutes() || momDate.hours() || momDate.seconds();
@@ -69,13 +76,13 @@ function extendContextMenu() {
             //if option tryConvertDateTime is not checked, but we have a candiate as date, we simple add the
             // candate as search word
             if (!items.tryConvertDateTime && timespanFromSearchWord) {
-                searchQuery.push(timespanFromSearchWord);
+                searchQuery.push(timespanFromSearchWord.input);
                 timespanFromSearchWord = null;
             }
 
             var defaultWords = items.defaultWords ? items.defaultWords + " " : "";
             var params = "search?q=search%20" + encodeURIComponent(defaultWords + " " + searchQuery.join(" "));
-            var params = params + getTimespan(items.timespan, timespanFromSearchWord ? moment(timespanFromSearchWord) : null);
+            var params = params + getTimespan(items.timespan, timespanFromSearchWord ? timespanFromSearchWord.parsedDate : null);
             window.open(items.url + params);
             timespanFromSearchWord = null;
             searchQuery = [];
