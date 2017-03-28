@@ -1,19 +1,3 @@
-// var requestData = { "action": "createContextMenuItem" };
-// //send request to background script
-// chrome.extension.sendRequest(requestData);
-
-// var isInitialized;
-// function onRequest(request, sender, callback) {
-//     if (request.action == 'createContextMenuItem' && !isInitialized) {
-//         console.log("got request createContextMenuItem");
-//         isInitialized = true;
-//     }
-// }
-
-// //subscribe on request from content.js:
-// console.log("chrome.extension.onRequest.addListener(onRequest);");
-// chrome.extension.onRequest.addListener(onRequest);
-
 
 var searchQuery = [];
 var timespanFromSearchWord = null;
@@ -27,7 +11,7 @@ function extendContextMenu() {
         }
 
         if (moment(info.selectionText).isValid()) {
-            console.log(info.selectionText + " parsed as date: " + parsedDate);
+            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText));
             //if we had already a timespanFromSearchWord we add it to the searchQuery and use the new one.
             if (timespanFromSearchWord) {
                 searchQuery.push(info.timespanFromSearchWord);
@@ -41,21 +25,16 @@ function extendContextMenu() {
         if (info.menuItemId == "addAndSearch") {
             SearchInSplunk(searchQuery);
         }
-        // console.log("item " + info.menuItemId + " was clicked");
-        //console.log("selected Text is: " + info.selectionText);
-        //console.log("serach query looks like: " + JSON.stringify(searchQuery));
-        //console.log("info: " + JSON.stringify(info));
-        //console.log("tab: " + JSON.stringify(tab));
     };
 
-    function getTimespan(timespanOption, m) {
-        var splunkFormat = function (m) { return m.format("M/D/Y:H:m:s"); };
-        if (m) {
-            var hasTime = m.minutes() || m.hours() || m.seconds();
+    function getTimespan(timespanOption,momDate) {
+        var splunkFormat = function (momDate) { return momDate.format("M/D/Y:H:m:s"); };
+        if (momDate) {
+            var hasTime = momDate.minutes() || momDate.hours() || momDate.seconds();
             if (hasTime) {
-                return "&earliest=" + splunkFormat(m.second(t.second() - 2)) + "&latest=" + splunkFormat(t.second(t.second() + 2));
+                return "&earliest=" + splunkFormat(momDate.second(momDate.second() - 2)) + "&latest=" + splunkFormat(momDate.second(momDate.second() + 2));
             } else {
-                return "&earliest=" + splunkFormat(m) + "&latest=" + splunkFormat(t.date(t.date() + 1));
+                return "&earliest=" + splunkFormat(momDate) + "&latest=" + splunkFormat(momDate.date(momDate.date() + 1));
             }
         } else if (timespanOption == "15min") {
             return "&earliest=-15m&latest=now"
@@ -96,7 +75,7 @@ function extendContextMenu() {
 
             var defaultWords = items.defaultWords ? items.defaultWords + " " : "";
             var params = "search?q=search%20" + encodeURIComponent(defaultWords + " " + searchQuery.join(" "));
-            var params = params + getTimespan(items.timespan, moment(timespanFromSearchWord));
+            var params = params + getTimespan(items.timespan, timespanFromSearchWord ? moment(timespanFromSearchWord) : null);
             window.open(items.url + params);
             timespanFromSearchWord = null;
             searchQuery = [];
