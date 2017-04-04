@@ -16,7 +16,7 @@ function checkIsDate(textInput) {
 
 function checkIsParsable(textInput) {
     var date = Date.parse(textInput);
-    if (isNan(date)) {
+    if (isNaN(date)) {
         return { isValid: false };
     }
     return { isValid: true, input: textInput, parsedDate: new Date(date) };
