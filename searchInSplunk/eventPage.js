@@ -2,6 +2,51 @@
 var searchQuery = [];
 var timespanFromSearchWord = null;
 
+function checkIsDate(textInput) {
+    var deFormatted = checkIsDEDate(textInput);
+    if (deFormatted.isValid) {
+        return deFormatted;
+    }
+    var deFormatted = checkIsParsable(textInput);
+    if (deFormatted.isValid) {
+        return deFormatted;
+    }
+    return checkIsEnDate(textInput);
+}
+
+function checkIsParsable(textInput) {
+    var date = Date.parse(textInput);
+    if (isNan(date)) {
+        return { isValid: false };
+    }
+    return { isValid: true, input: textInput, parsedDate: new Date(date) };
+}
+
+function checkIsEnDate(textInput) {
+    console.log('checkIsEnDate not implemented');
+    return { isValid: false };
+}
+
+function checkIsDEDate(textInput) {
+    //matches the following examples
+    //12.2.2015 or 12.2.04 or 12.10.2017 12:00 or 12.10.2017 um 12:00 or 12.10.2017 12:00:00 or 12.10.2017 12:00:00.000
+    const deFormattedDate = /^(\d{1,2}).(\d{1,2}).(\d{4}|\d{2})((\s|\sum\s)(\d{1,2}):(\d{1,2})(:(\d{1,2}))?(\.(\d{1,3}))?)?$/g;
+    //const str = `12.4.2016 12:13:14.999`;
+    let match = deFormattedDate.exec(textInput);
+    if (match == null) {
+        return { isValid: false };
+    }
+    //new Date(year, month, day, hours, minutes, seconds, milliseconds)
+    var date = new Date(match[3], match[2], match[1])
+    if (match[6]) date.setHours(match[6]);
+    if (match[7]) date.setMinutes(match[7]);
+    if (match[9]) date.setSeconds(match[9]);
+    if (match[11]) date.setMilliseconds(match[11]);
+
+    return { isValid: true, input: textInput, parsedDate: date };
+}
+
+
 function extendContextMenu() {
     // The onClicked callback function.
     function onClickHandler(info, tab) {
@@ -10,20 +55,14 @@ function extendContextMenu() {
             timespanFromSearchWord = null;
         }
 
-        if (moment(info.selectionText).isValid()) {
-            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText).toDate());
+        var dateCheck = checkIsDate(info.selectionText);
+        if (dateCheck.isValid) {
+            console.log(info.selectionText + " parsed as date: " + dateCheck.parsedDate);
             //if we had already a timespanFromSearchWord we add it to the searchQuery and use the new one.
             if (timespanFromSearchWord) {
                 searchQuery.push(info.timespanFromSearchWord.input);
             }
-            timespanFromSearchWord = { input: info.selectionText, parsedDate: moment(info.selectionText) };
-        } else if (moment(new Date(Date.parse(info.selectionText))).isValid()) {
-            console.log(info.selectionText + " parsed as date: " + moment(info.selectionText).toDate());
-            //if we had already a timespanFromSearchWord we add it to the searchQuery and use the new one.
-            if (timespanFromSearchWord) {
-                searchQuery.push(info.timespanFromSearchWord.input);
-            }
-            timespanFromSearchWord = { input: info.selectionText, parsedDate: moment(new Date(Date.parse(info.selectionText))) };
+            timespanFromSearchWord = { input: info.selectionText, parsedDate: dateCheck.parsedDate };
         } else {
             searchQuery.push(info.selectionText);
             console.log("\"" + info.selectionText + "\" added to searchQuery: " + searchQuery.join(" "));
@@ -34,29 +73,25 @@ function extendContextMenu() {
         }
     };
 
-    function getTimespan(timespanOption, momDate) {
-        var splunkFormat = function (momDate) { return momDate.format("M/D/Y:H:m:s"); };
-        if (momDate) {
-            var hasTime = momDate.minutes() || momDate.hours() || momDate.seconds();
+    function getTimespan(timespanOption, parsedDate) {
+
+        if (parsedDate) {
+            var hasTime = parsedDate.getSeconds() || parsedDate.getMinutes() || parsedDate.getHours();
             if (hasTime) {
-                return "&earliest=" + splunkFormat(momDate.second(momDate.second() - 2)) + "&latest=" + splunkFormat(momDate.second(momDate.second() + 2));
+                return "&earliest=" + parsedDate.setSeconds(parsedDate.getSeconds() - 2) / 1000 + "&latest=" + parsedDate.setSeconds(parsedDate.getSeconds() + 2) / 1000;
             } else {
-                return "&earliest=" + splunkFormat(momDate) + "&latest=" + splunkFormat(momDate.date(momDate.date() + 1));
+                return "&earliest=" + parsedDate / 1000 + "&latest=" + parsedDate.setHours(parsedDate.getHours() - 2) / 1000;
             }
         } else if (timespanOption == "15min") {
             return "&earliest=-15m&latest=now"
         } else {
-            var today = new Date();
-            var dd = today.getDate();
-            var mm = today.getMonth() + 1; //January is 0!
-            var yyyy = today.getFullYear();
+            var now = new Date();
             if (timespanOption == "today") {
-                var today = mm + '/' + dd + '/' + yyyy + ":00:00:00";
-                //earliest="11/5/2015:20:00:00"
-                return "&earliest=" + today + "&latest=now";
+                var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                return "&earliest=" + today / 1000 + "&latest=now";
             } else if (timespanOption == "thisyear") {
-                var thisyear = '01/01/' + yyyy + ":00:00:00";
-                return "&earliest=" + thisyear + "&latest=now";
+                var thisyear = new Date(now.getFullYear(), 0, 1);
+                return "&earliest=" + thisyear / 1000 + "&latest=now";
             }
         }
         return "";
@@ -81,7 +116,7 @@ function extendContextMenu() {
             }
 
             var defaultWords = items.defaultWords ? items.defaultWords + " " : "";
-            var params = "search?q=search%20" + encodeURIComponent(defaultWords + " " + searchQuery.join(" "));
+            var params = "?q=search%20" + encodeURIComponent(defaultWords + " " + searchQuery.join(" "));
             var params = params + getTimespan(items.timespan, timespanFromSearchWord ? timespanFromSearchWord.parsedDate : null);
             window.open(items.url + params);
             timespanFromSearchWord = null;

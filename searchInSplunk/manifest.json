@@ -5,7 +5,7 @@
   "browser_action": {
     "default_icon": "icon16.png"
   },
-  "version": "1.0.0.3",
+  "version": "1.0.0.4",
   "author": "Stef Käser",
   "icons": {
     "16": "icon16.png",
@@ -22,7 +22,6 @@
   },
   "background": {
     "scripts": [
-      "moment.min.js",
       "eventPage.js"
     ],
     "persistent": false
