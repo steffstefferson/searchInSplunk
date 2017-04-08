@@ -37,13 +37,17 @@ function checkIsDEDate(textInput) {
         return { isValid: false };
     }
     //new Date(year, month, day, hours, minutes, seconds, milliseconds)
-    var date = new Date(match[3], match[2], match[1])
+    var secondsDefined = false;
+    var date = new Date(match[3], match[2] - 1, match[1])
     if (match[6]) date.setHours(match[6]);
     if (match[7]) date.setMinutes(match[7]);
-    if (match[9]) date.setSeconds(match[9]);
+    if (match[9]) {
+        date.setSeconds(match[9]);
+        secondsDefined = true;
+    }
     if (match[11]) date.setMilliseconds(match[11]);
 
-    return { isValid: true, input: textInput, parsedDate: date };
+    return { isValid: true, input: textInput, parsedDate: date, secondsDefined: secondsDefined };
 }
 
 
@@ -62,7 +66,7 @@ function extendContextMenu() {
             if (timespanFromSearchWord) {
                 searchQuery.push(info.timespanFromSearchWord.input);
             }
-            timespanFromSearchWord = { input: info.selectionText, parsedDate: dateCheck.parsedDate };
+            timespanFromSearchWord = { input: info.selectionText, parsedDate: dateCheck.parsedDate, secondsDefined: dateCheck.secondsDefined };
         } else {
             searchQuery.push(info.selectionText);
             console.log("\"" + info.selectionText + "\" added to searchQuery: " + searchQuery.join(" "));
@@ -73,15 +77,12 @@ function extendContextMenu() {
         }
     };
 
-    function getTimespan(timespanOption, parsedDate) {
-
+    function getTimespan(timespanOption, timespanFromSearchWord) {
+        var parsedDate = timespanFromSearchWord ? timespanFromSearchWord.parsedDate : null;
         if (parsedDate) {
-            var hasTime = parsedDate.getSeconds() || parsedDate.getMinutes() || parsedDate.getHours();
-            if (hasTime) {
-                return "&earliest=" + parsedDate.setSeconds(parsedDate.getSeconds() - 2) / 1000 + "&latest=" + parsedDate.setSeconds(parsedDate.getSeconds() + 2) / 1000;
-            } else {
-                return "&earliest=" + parsedDate / 1000 + "&latest=" + parsedDate.setHours(parsedDate.getHours() - 2) / 1000;
-            }
+            var { earliest, latest } = calculateTimespan(parsedDate, timespanFromSearchWord.secondsDefined);
+            console.log("provided timespan from " + new Date(earliest) + " to " + new Date(latest));
+            return "&earliest=" + earliest / 1000 + "&latest=" + latest / 1000;
         } else if (timespanOption == "15min") {
             return "&earliest=-15m&latest=now"
         } else {
@@ -95,6 +96,22 @@ function extendContextMenu() {
             }
         }
         return "";
+    }
+
+    function calculateTimespan(parsedDate, secondsDefined) {
+        var latest = new Date(parsedDate);
+        var hasTime = parsedDate.getSeconds() || parsedDate.getMinutes() || parsedDate.getHours();
+        if (hasTime) {
+            if (secondsDefined) {
+                //if seconds are defined we want a timeslot of 4 seconds
+                return { earliest: parsedDate.setSeconds(parsedDate.getSeconds() - 2), latest: latest.setSeconds(latest.getSeconds() + 2) };
+            } else {
+                // if no seconds are defined we want a time slot of one minute
+                return { earliest: parsedDate, latest: latest.setMinutes(latest.getMinutes() + 1) };
+            }
+        }
+        //we want the whole day, since no time provided
+        return { earliest: parsedDate, latest: latest.setHours(24) };
     }
 
     function SearchInSplunk(searchQuery) {
@@ -117,7 +134,7 @@ function extendContextMenu() {
 
             var defaultWords = items.defaultWords ? items.defaultWords + " " : "";
             var params = "?q=search%20" + encodeURIComponent(defaultWords + " " + searchQuery.join(" "));
-            var params = params + getTimespan(items.timespan, timespanFromSearchWord ? timespanFromSearchWord.parsedDate : null);
+            var params = params + getTimespan(items.timespan, timespanFromSearchWord);
             window.open(items.url + params);
             timespanFromSearchWord = null;
             searchQuery = [];
